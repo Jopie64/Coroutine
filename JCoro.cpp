@@ -50,7 +50,11 @@ CCoro* CCoro::Initialize()
 {
 	//There should be no coro yet... Lets create the first one of this thread.
 	CCoro* W_ThisPtr = new FcMainStartFuncDummy;
-	W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(W_ThisPtr);
+	if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(W_ThisPtr)) == NULL)
+	{
+		delete W_ThisPtr;
+		throw std::runtime_error("Cannot initialize coroutines.");
+	}
 	return W_ThisPtr;
 }
 
