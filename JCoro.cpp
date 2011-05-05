@@ -2,6 +2,8 @@
 #include "JCoro.h"
 #include <stdexcept>
 
+//TODO: Ensure cooperation with other fiber using libraries (.NET for example) will work.
+
 namespace JCoro
 {
 
@@ -18,7 +20,10 @@ CCoro::CCoro(CCoro* P_MainCoroPtr)
 CCoro::~CCoro()
 {
 	if(IsMain())
+	{
+		ConvertFiberToThread();
 		return;
+	}
 
 	if(!m_bEnded)
 		Abort();
