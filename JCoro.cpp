@@ -7,6 +7,26 @@
 namespace JCoro
 {
 
+DWORD G_dwCoroSlotIx = 0;
+
+DWORD GetCoroSlotIx()
+{
+	if(G_dwCoroSlotIx == 0)
+		G_dwCoroSlotIx = FlsAlloc(NULL);
+
+	return G_dwCoroSlotIx;
+}
+
+CCoro* GetCurCoroPtr()
+{
+	return (CCoro*)FlsGetValue(GetCoroSlotIx());
+}
+
+void SetCurCoroPtr(CCoro* P_CoroPtr)
+{
+	FlsSetValue(GetCoroSlotIx(), P_CoroPtr);
+}
+
 CCoro::CCoro(CCoro* P_MainCoroPtr)
 :	m_MainCoroPtr(P_MainCoroPtr),
 	m_AddressPtr(NULL),
@@ -55,11 +75,12 @@ CCoro* CCoro::Initialize()
 {
 	//There should be no coro yet... Lets create the first one of this thread.
 	CCoro* W_ThisPtr = new FcMainStartFuncDummy;
-	if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(W_ThisPtr)) == NULL)
+	if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(NULL)) == NULL)
 	{
 		delete W_ThisPtr;
 		throw std::runtime_error("Cannot initialize coroutines.");
 	}
+	SetCurCoroPtr(W_ThisPtr);
 	return W_ThisPtr;
 }
 
@@ -71,7 +92,7 @@ void CCoro::Deinitialize()
 
 CCoro* CCoro::Cur()
 {
-	CCoro* W_ThisPtr = (CCoro*)GetFiberData();
+	CCoro* W_ThisPtr = GetCurCoroPtr();
 	if(W_ThisPtr == NULL)
 		throw std::runtime_error("Hey, I was expecting a Coro* fiber data structure, but I found NULL for this fiber!");
 		
@@ -149,6 +170,7 @@ void CCoro::OnResume()
 void CALLBACK CCoro::StartFunc(void* P_FuncPtr)
 {
 	CCoro* W_CoroPtr = (CCoro*)P_FuncPtr;
+	SetCurCoroPtr(W_CoroPtr);
 	try
 	{
 		W_CoroPtr->OnResume();
@@ -159,7 +181,7 @@ void CALLBACK CCoro::StartFunc(void* P_FuncPtr)
 		W_CoroPtr->m_eAbort = eA_AbortDone;
 	}
 	W_CoroPtr->m_bEnded = true;
-	YieldDefault();//Yield to default and kill me
+	YieldDefault();//Yield to default. I've now become useless...
 }
 
 
