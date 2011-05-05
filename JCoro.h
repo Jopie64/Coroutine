@@ -4,6 +4,10 @@
 namespace JCoro
 {
 
+class CAbortException
+{
+};
+
 class CCoro
 {
 public:
@@ -33,6 +37,7 @@ public:
 	}
 
 	static void YieldTo(CCoro* P_YieldToPtr = NULL);
+	void		Abort();
 
 
 
@@ -51,6 +56,7 @@ private:
 	CCoro*	m_YieldingCoroPtr;
 	void*	m_AddressPtr;
 	bool	m_bEnded;
+	bool	m_bAbort;
 };
 
 template<class TP_Cb>

@@ -2,6 +2,11 @@
 #include "JCoro.h"
 #include <stdexcept>
 
+//TODO: Fix memory leak of main fiber on thread exit
+//TODO: Make it possible for a yielder to have the yielded yield back when it is yielding to the default coro (main).
+//TODO: Make Abort() doing this.
+//TODO: Check whether abort works or not
+
 namespace JCoro
 {
 
@@ -9,7 +14,8 @@ CCoro::CCoro(CCoro* P_MainCoroPtr)
 :	m_MainCoroPtr(P_MainCoroPtr),
 	m_AddressPtr(NULL),
 	m_bEnded(false),
-	m_YieldingCoroPtr(NULL)
+	m_YieldingCoroPtr(NULL),
+	m_bAbort(false)
 {
 }
 
@@ -65,6 +71,12 @@ void CCoro::YieldTo(CCoro* P_YieldToPtr)
 	Cur()->OnResume();
 }
 
+void CCoro::Abort()
+{
+	m_bAbort = true;
+	YieldTo(this);
+}
+
 void CCoro::OnResume()
 {
 	if(m_YieldingCoroPtr->m_bEnded)
@@ -73,13 +85,24 @@ void CCoro::OnResume()
 		delete m_YieldingCoroPtr;
 		m_YieldingCoroPtr = NULL;
 	}
+	if(m_bAbort)
+	{
+		//Someone wants me to abort... Well lets obey that then.
+		throw CAbortException();
+	}
 }
 
 void CALLBACK CCoro::StartFunc(void* P_FuncPtr)
 {
 	CCoro* W_CoroPtr = (CCoro*)P_FuncPtr;
-	W_CoroPtr->OnResume();
-	(*W_CoroPtr)();
+	try
+	{
+		W_CoroPtr->OnResume();
+		(*W_CoroPtr)();
+	}
+	catch(CAbortException&)
+	{
+	}
 	W_CoroPtr->m_bEnded = true;
 	YieldTo();//Yield to main and kill me
 }
