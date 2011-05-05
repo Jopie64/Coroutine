@@ -42,7 +42,7 @@ void You()
 
 int _tmain(int argc, _TCHAR* argv[])
 {
-	CCoro::Initialize();
+	CCoro* W_MainPtr = CCoro::Initialize();
 	cout << "Hello world!" << endl;
 
 	CCoro* W_FuckPtr = CCoro::Create(std::tr1::bind(&Fuck));
@@ -57,6 +57,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	delete W_FuckPtr;
 	delete W_YouPtr;
 
+	delete W_MainPtr;
 
 	char c;
 	cin >> c;
