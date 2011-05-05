@@ -2,11 +2,6 @@
 #include "JCoro.h"
 #include <stdexcept>
 
-//TODO: Fix memory leak of main fiber on thread exit
-//TODO: Make it possible for a yielder to have the yielded yield back when it is yielding to the default coro (main).
-//TODO: Make Abort() doing this.
-//TODO: Check whether abort works or not
-
 namespace JCoro
 {
 
@@ -15,12 +10,19 @@ CCoro::CCoro(CCoro* P_MainCoroPtr)
 	m_AddressPtr(NULL),
 	m_bEnded(false),
 	m_YieldingCoroPtr(NULL),
-	m_bAbort(false)
+	m_eAbort(eA_No),
+	m_DefaultYieldCoroPtr(NULL)
 {
 }
 
 CCoro::~CCoro()
 {
+	if(IsMain())
+		return;
+
+	if(!m_bEnded)
+		Abort();
+
 	if(m_AddressPtr != NULL)
 		DeleteFiber(m_AddressPtr);
 }
@@ -52,6 +54,12 @@ CCoro* CCoro::Initialize()
 	return W_ThisPtr;
 }
 
+void CCoro::Deinitialize()
+{
+	delete Main();
+}
+
+
 CCoro* CCoro::Cur()
 {
 	CCoro* W_ThisPtr = (CCoro*)GetFiberData();
@@ -62,32 +70,69 @@ CCoro* CCoro::Cur()
 }
 
 
-void CCoro::YieldTo(CCoro* P_YieldToPtr)
+void CCoro::yield(CCoro* P_YieldBackCoroPtr)
 {
-	if(P_YieldToPtr == NULL)
-		P_YieldToPtr = Main();
-	P_YieldToPtr->m_YieldingCoroPtr = Cur();
-	SwitchToFiber(P_YieldToPtr->m_AddressPtr);
+	if(this == Cur())
+	{
+		//Yielded to self. This would be an error if the user realy wanted to do this because we are already in self.
+		//Asuming the user intended to yield the default because is has the same function name but not in this class.
+		YieldDefault();
+		return;
+	}
+
+	if(m_bEnded)
+		throw std::logic_error("Yielding to an ended coroutine.");
+
+	if(P_YieldBackCoroPtr != NULL && P_YieldBackCoroPtr->Ended())
+		throw std::logic_error("Cannot set yieldback to an ended coroutine.");
+
+	if(m_DefaultYieldCoroPtr != NULL && P_YieldBackCoroPtr != NULL && m_DefaultYieldCoroPtr != P_YieldBackCoroPtr)
+		throw std::logic_error("Canot set yieldback, because coroutine is already set to yield back to a different coroutine.");
+
+	if(!Cur()->Ended())
+		m_YieldingCoroPtr = Cur();
+
+	if(P_YieldBackCoroPtr != NULL)
+		m_DefaultYieldCoroPtr = P_YieldBackCoroPtr;
+
+	SwitchToFiber(m_AddressPtr);
 	Cur()->OnResume();
+}
+
+void CCoro::YieldDefault()
+{
+	CCoro* W_CoroPtr = NULL;
+	if(Cur()->m_DefaultYieldCoroPtr != NULL)
+	{
+		W_CoroPtr = Cur()->m_DefaultYieldCoroPtr;
+		Cur()->m_DefaultYieldCoroPtr = NULL;
+	}
+	else
+		W_CoroPtr = Main();
+
+	W_CoroPtr->yield(NULL);
+}
+
+bool CCoro::Ended() const
+{
+	return m_bEnded;
 }
 
 void CCoro::Abort()
 {
-	m_bAbort = true;
-	YieldTo(this);
+	if(Ended())
+		throw std::logic_error("Aborting an ended coroutine.");
+
+	m_eAbort = eA_AbortInitiated;
+	yield();
 }
 
 void CCoro::OnResume()
 {
-	if(m_YieldingCoroPtr->m_bEnded)
-	{
-		//Coro yielding to me ended. Lets clean it up first.
-		delete m_YieldingCoroPtr;
-		m_YieldingCoroPtr = NULL;
-	}
-	if(m_bAbort)
+	if(m_eAbort == eA_AbortInitiated)
 	{
 		//Someone wants me to abort... Well lets obey that then.
+		m_eAbort = eA_AbortRunning;
 		throw CAbortException();
 	}
 }
@@ -102,9 +147,27 @@ void CALLBACK CCoro::StartFunc(void* P_FuncPtr)
 	}
 	catch(CAbortException&)
 	{
+		W_CoroPtr->m_eAbort = eA_AbortDone;
 	}
 	W_CoroPtr->m_bEnded = true;
-	YieldTo();//Yield to main and kill me
+	YieldDefault();//Yield to default and kill me
 }
+
+
+void yield()
+{
+	CCoro::YieldDefault();
+}
+
+CCoro* Initialize()
+{
+	return CCoro::Initialize();
+}
+
+void Deinitialize()
+{
+	CCoro::Deinitialize();
+}
+
 
 }

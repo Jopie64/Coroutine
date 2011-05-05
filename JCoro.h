@@ -14,7 +14,8 @@ public:
 	CCoro(CCoro* P_MainCoroPtr);
 	virtual ~CCoro();
 
-	static CCoro* Initialize();
+	static CCoro*	Initialize();
+	static void		Deinitialize();
 
 	static CCoro* Cur();
 
@@ -36,8 +37,10 @@ public:
 		return W_CoroPtr;
 	}
 
-	static void YieldTo(CCoro* P_YieldToPtr = NULL);
+	static void YieldDefault();
+	void		yield(CCoro* P_YieldBackCoroPtr = Cur());
 	void		Abort();
+	bool		Ended() const;
 
 
 
@@ -52,11 +55,14 @@ private:
 
 	static void CALLBACK StartFunc(void* P_FuncPtr);
 
+	enum eAbort { eA_No, eA_AbortInitiated, eA_AbortRunning, eA_AbortDone };
+
 	CCoro*	m_MainCoroPtr;
 	CCoro*	m_YieldingCoroPtr;
+	CCoro*	m_DefaultYieldCoroPtr;
 	void*	m_AddressPtr;
 	bool	m_bEnded;
-	bool	m_bAbort;
+	eAbort	m_eAbort;
 };
 
 template<class TP_Cb>
@@ -67,5 +73,12 @@ friend CCoro;
 	void operator()() const { m_Cb(); }
 	TP_Cb m_Cb;
 };
+
+CCoro*	Initialize();
+void	Deinitialize();
+void	yield(); //No capital y, because winbase.h defines Yield() as a macro, pfff.
+
+template<class TP_Cb>
+static CCoro* Create(const TP_Cb& P_Cb) { return CCoro::Create(P_Cb); }
 
 }

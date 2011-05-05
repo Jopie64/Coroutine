@@ -23,20 +23,20 @@ public:
 void Fuck()
 {
 	CEndTxt W_End("Fuck, I stopped!");
-	for(int i = 0; i < 10; ++i)
+	while(true)
 	{
 		cout << "Fuck ";
-		CCoro::YieldTo();
+		yield();
 	}
 }
 
 void You()
 {
 	CEndTxt W_End("You, stopped me!");
-	for(int i = 0; i < 10; ++i)
+	while(true)
 	{
 		cout << "You!" << endl;
-		CCoro::YieldTo();
+		yield();
 	}
 }
 
@@ -50,11 +50,12 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	for(int i = 0; i < 10; ++i)
 	{
-		CCoro::YieldTo(W_FuckPtr);
-		CCoro::YieldTo(W_YouPtr);
+		W_FuckPtr->yield();
+		W_YouPtr->yield();
 	}
-	W_FuckPtr->Abort();
-	W_YouPtr->Abort();
+
+	delete W_FuckPtr;
+	delete W_YouPtr;
 
 
 	char c;
