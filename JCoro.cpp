@@ -2,8 +2,6 @@
 #include "JCoro.h"
 #include <stdexcept>
 
-//TODO: Ensure cooperation with other fiber using libraries (.NET for example) will work.
-
 namespace JCoro
 {
 
@@ -27,6 +25,12 @@ void SetCurCoroPtr(CCoro* P_CoroPtr)
 	FlsSetValue(GetCoroSlotIx(), P_CoroPtr);
 }
 
+bool IsFiber()
+{
+	void* W_FiberPtr = GetCurrentFiber();
+	return W_FiberPtr != NULL && (int)W_FiberPtr != 0x00001E00; //Magic number when not in fiber mode. It is in that case the version of threads or something. The windows API will provide its own IsFiber() function in the future.
+}
+
 CCoro::CCoro(CCoro* P_MainCoroPtr)
 :	m_MainCoroPtr(P_MainCoroPtr),
 	m_AddressPtr(NULL),
@@ -40,10 +44,7 @@ CCoro::CCoro(CCoro* P_MainCoroPtr)
 CCoro::~CCoro()
 {
 	if(IsMain())
-	{
-		ConvertFiberToThread();
 		return;
-	}
 
 	if(!m_bEnded)
 		Abort();
@@ -67,15 +68,26 @@ CCoro* CCoro::Main()
 class CCoro::FcMainStartFuncDummy : public CCoro
 {
 friend CCoro;
-	FcMainStartFuncDummy():CCoro(NULL){}
+	FcMainStartFuncDummy():CCoro(NULL), m_bWasAlreadyFiber(IsFiber()){}
+	virtual ~FcMainStartFuncDummy()
+	{
+		if(!m_bWasAlreadyFiber)
+			ConvertFiberToThread();
+	}
+
+	bool m_bWasAlreadyFiber;
 	void operator()() const { throw std::logic_error("Calling the main coro's main function right? You cannot do that!"); }
 };
 
 CCoro* CCoro::Initialize()
 {
 	//There should be no coro yet... Lets create the first one of this thread.
-	CCoro* W_ThisPtr = new FcMainStartFuncDummy;
-	if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(NULL)) == NULL)
+	FcMainStartFuncDummy* W_ThisPtr = new FcMainStartFuncDummy;
+	if(W_ThisPtr->m_bWasAlreadyFiber)
+	{
+		W_ThisPtr->m_AddressPtr = GetCurrentFiber();
+	}
+	else if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(NULL)) == NULL)
 	{
 		delete W_ThisPtr;
 		throw std::runtime_error("Cannot initialize coroutines.");
