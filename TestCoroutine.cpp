@@ -7,6 +7,7 @@
 #include <functional>
 #include <string>
 #include "JCoro.h"
+#include <memory>
 
 using namespace std;
 using namespace JCoro;
@@ -40,6 +41,53 @@ void You()
 	}
 }
 
+int G_Nr = 0;
+#ifdef _DEBUG
+const int G_LogEvery	= 100000;
+const int G_Iter		= 500000;
+#else
+const int G_LogEvery	= 1000000;
+const int G_Iter		= 5000000;
+#endif
+
+void IncNr(bool doYield)
+{
+	int incCount = 0;
+	do
+	{
+		++G_Nr;
+		++incCount;
+		if(G_Nr % G_LogEvery == 0)
+			cout << "Reached " << G_Nr << " at iteration " << incCount << endl;
+		if(doYield)
+			yield();
+	}while(doYield);
+}
+
+void TestPerformance()
+{
+	cout << "Testing coro performance..." << endl;
+
+	std::tr1::shared_ptr<CCoro> W_Inc1Ptr(CCoro::Create(std::tr1::bind(&IncNr, true)));
+	std::tr1::shared_ptr<CCoro> W_Inc2Ptr(CCoro::Create(std::tr1::bind(&IncNr, true)));
+
+	for(int i=0; i<G_Iter; ++i)
+	{
+		W_Inc1Ptr->yield();
+		W_Inc2Ptr->yield();
+	}
+
+	G_Nr = 0;
+	cout << "Now testing without coro's..." << endl;
+	for(int i=0; i<G_Iter; ++i)
+	{
+		IncNr(false);
+		IncNr(false);
+	}
+
+	cout << "Done." << endl;
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	CMainCoro W_MainCoro = CCoro::Initialize();
@@ -56,6 +104,8 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	delete W_FuckPtr;
 	delete W_YouPtr;
+
+	TestPerformance();
 
 	char c;
 	cin >> c;
