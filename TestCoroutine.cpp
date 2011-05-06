@@ -53,11 +53,14 @@ const int G_Iter		= 5000000;
 void IncNr(bool doYield)
 {
 	int incCount = 0;
+	int iLogEvery = G_LogEvery;
+	if(!doYield)
+		iLogEvery *= 10;
 	do
 	{
 		++G_Nr;
 		++incCount;
-		if(G_Nr % G_LogEvery == 0)
+		if(G_Nr % iLogEvery == 0)
 			cout << "Reached " << G_Nr << " at iteration " << incCount << endl;
 		if(doYield)
 			yield();
@@ -79,7 +82,7 @@ void TestPerformance()
 
 	G_Nr = 0;
 	cout << "Now testing without coro's..." << endl;
-	for(int i=0; i<G_Iter; ++i)
+	for(int i=0; i<G_Iter*10; ++i)
 	{
 		IncNr(false);
 		IncNr(false);
