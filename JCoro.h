@@ -5,7 +5,7 @@
 namespace JCoro
 {
 
-class CAbortException
+class CExitException
 {
 };
 
@@ -50,7 +50,7 @@ public:
 
 	static void YieldDefault();
 	void		yield(CCoro* P_YieldBackCoroPtr = Cur());
-	void		Abort();
+	void		Exit();
 	bool		Ended() const;
 
 
@@ -66,14 +66,14 @@ private:
 
 	static void CALLBACK StartFunc(void* P_FuncPtr);
 
-	enum eAbort { eA_No, eA_AbortInitiated, eA_AbortRunning, eA_AbortDone };
+	enum eExit { eA_No, eA_ExitInitiated, eA_ExitRunning, eA_ExitDone };
 
 	CCoro*	m_MainCoroPtr;
 	CCoro*	m_YieldingCoroPtr;
 	CCoro*	m_DefaultYieldCoroPtr;
 	void*	m_AddressPtr;
 	bool	m_bEnded;
-	eAbort	m_eAbort;
+	eExit	m_eExit;
 };
 
 template<class TP_Cb>

@@ -41,7 +41,7 @@ CCoro::CCoro(CCoro* P_MainCoroPtr)
 	m_AddressPtr(NULL),
 	m_bEnded(false),
 	m_YieldingCoroPtr(NULL),
-	m_eAbort(eA_No),
+	m_eExit(eA_No),
 	m_DefaultYieldCoroPtr(NULL)
 {
 }
@@ -52,7 +52,7 @@ CCoro::~CCoro()
 		return;
 
 	if(!m_bEnded)
-		Abort();
+		Exit();
 
 	if(m_AddressPtr != NULL)
 		DeleteFiber(m_AddressPtr);
@@ -171,22 +171,22 @@ bool CCoro::Ended() const
 	return m_bEnded;
 }
 
-void CCoro::Abort()
+void CCoro::Exit()
 {
 	if(Ended())
-		throw std::logic_error("Aborting an ended coroutine.");
+		throw std::logic_error("Exiting an ended coroutine.");
 
-	m_eAbort = eA_AbortInitiated;
+	m_eExit = eA_ExitInitiated;
 	yield();
 }
 
 void CCoro::OnResume()
 {
-	if(m_eAbort == eA_AbortInitiated)
+	if(m_eExit == eA_ExitInitiated)
 	{
-		//Someone wants me to abort... Well lets obey that then.
-		m_eAbort = eA_AbortRunning;
-		throw CAbortException();
+		//Someone wants me to exit... Well lets obey that then.
+		m_eExit = eA_ExitRunning;
+		throw CExitException();
 	}
 }
 
@@ -199,9 +199,9 @@ void CALLBACK CCoro::StartFunc(void* P_FuncPtr)
 		W_CoroPtr->OnResume();
 		(*W_CoroPtr)();
 	}
-	catch(CAbortException&)
+	catch(CExitException&)
 	{
-		W_CoroPtr->m_eAbort = eA_AbortDone;
+		W_CoroPtr->m_eExit = eA_ExitDone;
 	}
 	W_CoroPtr->m_bEnded = true;
 	YieldDefault();//Yield to default. I've now become useless...
