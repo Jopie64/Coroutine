@@ -31,6 +31,11 @@ bool IsFiber()
 	return W_FiberPtr != NULL && (int)W_FiberPtr != 0x00001E00; //Magic number when not in fiber mode. It is in that case the version of threads or something. The windows API will provide its own IsFiber() function in the future.
 }
 
+bool IsCoro()
+{
+	return GetCurCoroPtr() != NULL;
+}
+
 CCoro::CCoro(CCoro* P_MainCoroPtr)
 :	m_MainCoroPtr(P_MainCoroPtr),
 	m_AddressPtr(NULL),
@@ -65,11 +70,12 @@ CCoro* CCoro::Main()
 	return Cur()->m_MainCoroPtr;
 }
 
-class CCoro::FcMainStartFuncDummy : public CCoro
+class CMainCoroutine : public CCoro, public std::tr1::enable_shared_from_this<CMainCoroutine>
 {
 friend CCoro;
-	FcMainStartFuncDummy():CCoro(NULL), m_bWasAlreadyFiber(IsFiber()){}
-	virtual ~FcMainStartFuncDummy()
+public:
+	CMainCoroutine():CCoro(NULL), m_bWasAlreadyFiber(IsFiber()){}
+	virtual ~CMainCoroutine()
 	{
 		if(!m_bWasAlreadyFiber)
 			ConvertFiberToThread();
@@ -79,27 +85,32 @@ friend CCoro;
 	void operator()() const { throw std::logic_error("Calling the main coro's main function right? You cannot do that!"); }
 };
 
-CCoro* CCoro::Initialize()
+CMainCoro CCoro::Initialize()
 {
+	//Lets check if there already was a main coro
+	CMainCoro W_Coro;
+	if(IsCoro())
+	{
+		//Yea we already got one.
+		W_Coro.m_MainCoroPtr = ((CMainCoroutine*)Main())->shared_from_this();
+		return W_Coro;
+	}
+
 	//There should be no coro yet... Lets create the first one of this thread.
-	FcMainStartFuncDummy* W_ThisPtr = new FcMainStartFuncDummy;
+	std::tr1::shared_ptr<CMainCoroutine> W_ThisPtr(new CMainCoroutine);
 	if(W_ThisPtr->m_bWasAlreadyFiber)
 	{
 		W_ThisPtr->m_AddressPtr = GetCurrentFiber();
 	}
 	else if((W_ThisPtr->m_AddressPtr = ConvertThreadToFiber(NULL)) == NULL)
 	{
-		delete W_ThisPtr;
 		throw std::runtime_error("Cannot initialize coroutines.");
 	}
-	SetCurCoroPtr(W_ThisPtr);
-	return W_ThisPtr;
+	SetCurCoroPtr(W_ThisPtr.get());
+	W_Coro.m_MainCoroPtr = W_ThisPtr;
+	return W_Coro;
 }
 
-void CCoro::Deinitialize()
-{
-	delete Main();
-}
 
 
 CCoro* CCoro::Cur()
@@ -202,14 +213,9 @@ void yield()
 	CCoro::YieldDefault();
 }
 
-CCoro* Initialize()
+CMainCoro Initialize()
 {
 	return CCoro::Initialize();
-}
-
-void Deinitialize()
-{
-	CCoro::Deinitialize();
 }
 
 

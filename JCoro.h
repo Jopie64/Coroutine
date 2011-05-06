@@ -1,5 +1,6 @@
 #pragma once
 #include <windows.h>
+#include <memory>
 
 namespace JCoro
 {
@@ -8,14 +9,26 @@ class CAbortException
 {
 };
 
+class CCoro;
+
+class CMainCoro
+{
+public:
+	CCoro*	Get(){return m_MainCoroPtr.get();}
+	CCoro*	operator->(){return Get();}
+	CCoro&	operator*(){return *Get();}
+private:
+	std::tr1::shared_ptr<CCoro> m_MainCoroPtr;
+	friend CCoro;
+};
+
 class CCoro
 {
 public:
 	CCoro(CCoro* P_MainCoroPtr);
 	virtual ~CCoro();
 
-	static CCoro*	Initialize();
-	static void		Deinitialize();
+	static CMainCoro	Initialize();
 
 	static CCoro* Cur();
 
@@ -25,8 +38,6 @@ public:
 
 	template<class TP_Cb>
 	class FcStartFunc;
-
-	class FcMainStartFuncDummy;
 
 	template<class TP_Cb>
 	static CCoro* Create(const TP_Cb& P_Cb)
@@ -74,9 +85,8 @@ friend CCoro;
 	TP_Cb m_Cb;
 };
 
-CCoro*	Initialize();
-void	Deinitialize();
-void	yield(); //No capital y, because winbase.h defines Yield() as a macro, pfff.
+CMainCoro	Initialize();
+void		yield(); //No capital y, because winbase.h defines Yield() as a macro, pfff.
 
 template<class TP_Cb>
 static CCoro* Create(const TP_Cb& P_Cb) { return CCoro::Create(P_Cb); }
