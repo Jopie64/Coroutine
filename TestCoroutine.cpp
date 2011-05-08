@@ -42,27 +42,29 @@ void You()
 }
 
 int G_Nr = 0;
+
+const int G_YieldEvery  = 10;
 #ifdef _DEBUG
 const int G_LogEvery	= 100000;
 const int G_Iter		= 500000;
 #else
-const int G_LogEvery	= 1000000;
-const int G_Iter		= 5000000;
+const int G_LogEvery	= 10000000;
+const int G_Iter		= 50000000;
 #endif
 
 void IncNr(bool doYield)
 {
 	int incCount = 0;
 	int iLogEvery = G_LogEvery;
-	if(!doYield)
-		iLogEvery *= 10;
+//	if(!doYield)
+//		iLogEvery *= 10;
 	do
 	{
 		++G_Nr;
 		++incCount;
 		if(G_Nr % iLogEvery == 0)
 			cout << "Reached " << G_Nr << " at iteration " << incCount << endl;
-		if(doYield)
+		if(doYield && incCount % G_YieldEvery == 0)
 			yield();
 	}while(doYield);
 }
@@ -74,7 +76,7 @@ void TestPerformance()
 	std::tr1::shared_ptr<CCoro> W_Inc1Ptr(CCoro::Create(std::tr1::bind(&IncNr, true)));
 	std::tr1::shared_ptr<CCoro> W_Inc2Ptr(CCoro::Create(std::tr1::bind(&IncNr, true)));
 
-	for(int i=0; i<G_Iter; ++i)
+	for(int i=0; i<G_Iter/G_YieldEvery; ++i)
 	{
 		W_Inc1Ptr->yield();
 		W_Inc2Ptr->yield();
@@ -82,7 +84,7 @@ void TestPerformance()
 
 	G_Nr = 0;
 	cout << "Now testing without coro's..." << endl;
-	for(int i=0; i<G_Iter*10; ++i)
+	for(int i=0; i<G_Iter; ++i)
 	{
 		IncNr(false);
 		IncNr(false);
