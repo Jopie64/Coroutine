@@ -93,10 +93,25 @@ void TestPerformance()
 	cout << "Done." << endl;
 }
 
+
+typedef JCoro::CCoroutine<int, std::wstring> CTestCoro;
+void DoSome(CTestCoro::self& P_Self, std::wstring P_csStr)
+{
+	while(true)
+		P_csStr = P_Self.yield(MessageBox(NULL, P_csStr.c_str(), P_csStr.c_str(), 0));
+}
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	CMainCoro W_MainCoro = CCoro::Initialize();
+
 	cout << "Hello world!" << endl;
+
+	using namespace std::tr1::placeholders;
+	CTestCoro W_Coro(std::tr1::bind(&DoSome, _1, _2));
+
+	cout << "User said " << W_Coro(L"Hello") << " on hello" << endl;
+	cout << "User said " << W_Coro(L"World") << " on world" << endl;
 
 	CCoro* W_FuckPtr = CCoro::Create(std::tr1::bind(&Fuck));
 	CCoro* W_YouPtr = CCoro::Create(std::tr1::bind(&You));
