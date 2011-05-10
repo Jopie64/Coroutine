@@ -101,6 +101,36 @@ void DoSome(CTestCoro::self& P_Self, std::wstring P_csStr)
 		P_csStr = P_Self.yield(MessageBox(NULL, P_csStr.c_str(), P_csStr.c_str(), 0));
 }
 
+void CountChars(CTestCoro::self& P_Self, std::wstring P_csStr)
+{
+	while(true)
+		P_csStr = P_Self.yield(P_csStr.size());
+}
+
+
+typedef JCoro::CCoroutine<void, void> CVoidCoro;
+
+void DoSomeElse(CVoidCoro::self& P_Self)
+{
+	while(true)
+	{
+		MessageBox(NULL, L"Nothing", L"Hmmm... Nothing.", 0);
+		P_Self.yield();
+	}
+}
+
+typedef JCoro::CCoroutine<std::string, void> CStringCoro;
+
+void ReturnSomeStuff(CStringCoro::self& P_Self)
+{
+	while(true)
+	{
+		MessageBox(NULL, L"Return something", L"Hmmm... Something.", 0);
+		P_Self.yield("Return!");
+	}
+}
+
+
 int _tmain(int argc, _TCHAR* argv[])
 {
 	CMainCoro W_MainCoro = CCoro::Initialize();
@@ -112,6 +142,19 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	cout << "User said " << W_Coro(L"Hello") << " on hello" << endl;
 	cout << "User said " << W_Coro(L"World") << " on world" << endl;
+
+
+	CTestCoro W_LengthCoro(&CountChars);
+
+	cout
+		<< "Length of hi: " << W_LengthCoro(L"hi") << endl
+		<< "Length of bye: " << W_LengthCoro(L"bye") << endl;
+
+	(CVoidCoro(&DoSomeElse))();
+//	CVoidCoro W_VoidCoro(&DoSomeElse);
+//	W_VoidCoro();
+
+	cout << "Coro said: " << (CStringCoro(&ReturnSomeStuff))() << endl;
 
 	CCoro* W_FuckPtr = CCoro::Create(std::tr1::bind(&Fuck));
 	CCoro* W_YouPtr = CCoro::Create(std::tr1::bind(&You));

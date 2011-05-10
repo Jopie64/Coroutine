@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <memory>
 #include <functional>
+#include <stdexcept>
 
 namespace JCoro
 {
@@ -93,8 +94,41 @@ template<class TP_Cb>
 static CCoro* Create(const TP_Cb& P_Cb) { return CCoro::Create(P_Cb); }
 
 
+class CCoroutineBase
+{
+public:
+
+	virtual ~CCoroutineBase()
+	{
+		delete m_CoroPtr;
+	}
+
+	bool IsValid() const { return m_CoroPtr != NULL; }
+	void EnsureValid() const { if(!IsValid()) throw std::logic_error("Used uninitialized coroutine."); }
+
+
+	typedef bool (CCoroutineBase::*T_IsValidFuncPtr)() const;
+	operator T_IsValidFuncPtr () const {return IsValid() ? &CCoroutineBase::IsValid : NULL;}
+
+protected:
+	CCoroutineBase(CCoro* P_CoroPtr)
+	:	m_CoroPtr(P_CoroPtr)
+	{
+	}
+
+	void Init(CCoro* P_CoroPtr) { m_CoroPtr = P_CoroPtr; }
+
+private:
+	CCoroutineBase(const CCoroutineBase&);
+	CCoroutineBase& operator=(const CCoroutineBase&);
+
+protected:
+	CCoro*	m_CoroPtr;
+};
+
+
 template<class TP_Out, class TP_In>
-class CCoroutine
+class CCoroutine : public CCoroutineBase
 {
 public:
 
@@ -120,30 +154,13 @@ public:
 
 	typedef std::tr1::function<void (self&, TP_In)> T_Func;
 
-	CCoroutine(CCoro* P_CoroPtr)
-	: m_CoroPtr(P_CoroPtr), m_In(TP_In(), false), m_Out(TP_Out(), false)
-	{
-	}
-
 	template<class TP_Cb>
 	CCoroutine(const TP_Cb& P_Cb)
-	: m_CoroPtr(NULL), m_In(TP_In(), false), m_Out(TP_Out(), false)
+	: CCoroutineBase(NULL), m_In(TP_In(), false), m_Out(TP_Out(), false)
 	{
 		Init(P_Cb);
 	}
 
-
-	virtual ~CCoroutine()
-	{
-		delete m_CoroPtr;
-	}
-
-	bool IsValid() const { return m_CoroPtr != NULL; }
-
-	typedef bool (CCoroutine::*T_IsValidFuncPtr)() const;
-	operator T_IsValidFuncPtr () const {return IsValid() ? &CCoroutine::IsValid : NULL;}
-
-	void EnsureValid() const { if(!IsValid()) throw std::runtime_error("Used uninitialized coroutine."); }
 
 	TP_Out operator()(const TP_In& P_In)
 	{
@@ -161,7 +178,7 @@ public:
 	{
 		delete m_CoroPtr;
 		m_Func = P_Cb;
-		m_CoroPtr = Create(std::tr1::bind(&CCoroutine::Start, this));
+		CCoroutineBase::Init(Create(std::tr1::bind(&CCoroutine::Start, this)));
 	}
 
 private:
@@ -172,13 +189,134 @@ private:
 		m_Func(self(this), m_In.first);
 	}
 
-	CCoroutine(const CCoroutine&);
-	CCoroutine& operator=(const CCoroutine&);
+
 
 	T_Func	m_Func;
-	CCoro*	m_CoroPtr;
 
 	std::pair<TP_In, bool>	m_In;
 	std::pair<TP_Out, bool>	m_Out;
 };
+
+
+
+template<class TP_Out>
+class CCoroutine<TP_Out, void> : public CCoroutineBase
+{
+public:
+
+	class self
+	{
+	public:
+		self(CCoroutine* P_ThisPtr):m_ThisPtr(P_ThisPtr){}
+
+		void yield(const TP_Out& P_Out)
+		{
+			m_ThisPtr->m_Out.first = P_Out;
+			m_ThisPtr->m_Out.second = true;
+			JCoro::yield();
+		}
+
+	private:
+		CCoroutine* m_ThisPtr;
+	};
+
+	typedef std::tr1::function<void (self&)> T_Func;
+
+	template<class TP_Cb>
+	CCoroutine(const TP_Cb& P_Cb)
+	: CCoroutineBase(NULL), m_Out(TP_Out(), false)
+	{
+		Init(P_Cb);
+	}
+
+
+	TP_Out operator()()
+	{
+		EnsureValid();
+		m_CoroPtr->yield();
+		if(!m_Out.second)
+			throw std::logic_error("No return value received.");
+		return m_Out.first;
+	}
+
+	template<class TP_Cb>
+	void Init(const TP_Cb& P_Cb)
+	{
+		delete m_CoroPtr;
+		m_Func = P_Cb;
+		CCoroutineBase::Init(Create(std::tr1::bind(&CCoroutine::Start, this)));
+	}
+
+private:
+	void Start()
+	{
+		//ASSERT(m_In.second);
+		m_Func(self(this));
+	}
+
+
+
+	T_Func	m_Func;
+
+	std::pair<TP_Out, bool>	m_Out;
+};
+
+
+
+template<>
+class CCoroutine<void, void> : public CCoroutineBase
+{
+public:
+
+	class self
+	{
+	public:
+		self(CCoroutine* P_ThisPtr):m_ThisPtr(P_ThisPtr){}
+
+		void yield()
+		{
+			JCoro::yield();
+		}
+
+	private:
+		CCoroutine* m_ThisPtr;
+	};
+
+	typedef std::tr1::function<void (self&)> T_Func;
+
+	template<class TP_Cb>
+	CCoroutine(const TP_Cb& P_Cb)
+	: CCoroutineBase(NULL)
+	{
+		Init(P_Cb);
+	}
+
+
+	void operator()()
+	{
+		EnsureValid();
+		m_CoroPtr->yield();
+	}
+
+	template<class TP_Cb>
+	void Init(const TP_Cb& P_Cb)
+	{
+		delete m_CoroPtr;
+		m_Func = P_Cb;
+		CCoroutineBase::Init(Create(std::tr1::bind(&CCoroutine::Start, this)));
+	}
+
+private:
+	void Start()
+	{
+		//ASSERT(m_In.second);
+		m_Func(self(this));
+	}
+
+	T_Func	m_Func;
+
+};
+
+
+
 }
