@@ -6,11 +6,12 @@
 #include <iostream>
 #include <functional>
 #include <string>
-#include "JCoro.h"
+#include "jstd\JCoro.h"
 #include <memory>
+#include "jstd\JStd.h"
 
 using namespace std;
-using namespace JCoro;
+using namespace JStd::Coro;
 
 class CEndTxt
 {
@@ -94,7 +95,7 @@ void TestPerformance()
 }
 
 
-typedef JCoro::CCoroutine<int, std::wstring> CTestCoro;
+typedef CCoroutine<int, std::wstring> CTestCoro;
 void DoSome(CTestCoro::self& P_Self, std::wstring P_csStr)
 {
 	while(true)
@@ -108,7 +109,7 @@ void CountChars(CTestCoro::self& P_Self, std::wstring P_csStr)
 }
 
 
-typedef JCoro::CCoroutine<void, void> CVoidCoro;
+typedef CCoroutine<void, void> CVoidCoro;
 
 void DoSomeElse(CVoidCoro::self& P_Self)
 {
@@ -119,7 +120,7 @@ void DoSomeElse(CVoidCoro::self& P_Self)
 	}
 }
 
-typedef JCoro::CCoroutine<std::string, void> CStringCoro;
+typedef CCoroutine<std::string, void> CStringCoro;
 
 void ReturnSomeStuff(CStringCoro::self& P_Self)
 {
@@ -129,10 +130,38 @@ void ReturnSomeStuff(CStringCoro::self& P_Self)
 		P_Self.yield("Return!");
 	}
 }
+class CBla
+{
+public:
+	CBla(){cout << "hello" << endl;}
+	CBla(const std::string& P_s){cout << "hello: " << P_s << endl;}
+	~CBla(){cout << "bye" << endl;}
+};
 
+
+template<class TP_Return>
+class CFuture
+{
+public:
+	TP_Return m_Val;
+};
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	{
+		JStd::COptional<CBla> W_1;
+		JStd::COptional<CBla> W_2;
+		JStd::COptional<CBla> W_3;
+		JStd::COptional<CBla> W_4;
+		W_2();
+		W_3("hoi");
+
+		if(W_1)
+			cout << "W1 is ok" << endl;
+		if(W_2)
+			cout << "W2 is ok" << endl;
+	}
+
 	CMainCoro W_MainCoro = CCoro::Initialize();
 
 	cout << "Hello world!" << endl;

@@ -171,10 +171,6 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\JCoro.cpp"
-				>
-			</File>
-			<File
 				RelativePath=".\stdafx.cpp"
 				>
 				<FileConfiguration
@@ -198,16 +194,24 @@
 				RelativePath=".\TestCoroutine.cpp"
 				>
 			</File>
+			<Filter
+				Name="JStd"
+				>
+				<File
+					RelativePath=".\jstd\JCoro.cpp"
+					>
+				</File>
+				<File
+					RelativePath=".\jstd\JStd.cpp"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Header Files"
 			Filter="h;hpp;hxx;hm;inl;inc;xsd"
 			UniqueIdentifier="{93995380-89BD-4b04-88EB-625FBE52EBFB}"
 			>
-			<File
-				RelativePath=".\JCoro.h"
-				>
-			</File>
 			<File
 				RelativePath=".\stdafx.h"
 				>
@@ -216,6 +220,18 @@
 				RelativePath=".\targetver.h"
 				>
 			</File>
+			<Filter
+				Name="JStd"
+				>
+				<File
+					RelativePath=".\jstd\JCoro.h"
+					>
+				</File>
+				<File
+					RelativePath=".\jstd\JStd.h"
+					>
+				</File>
+			</Filter>
 		</Filter>
 		<Filter
 			Name="Resource Files"
