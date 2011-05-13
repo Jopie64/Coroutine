@@ -139,12 +139,6 @@ public:
 };
 
 
-template<class TP_Return>
-class CFuture
-{
-public:
-	TP_Return m_Val;
-};
 
 int _tmain(int argc, _TCHAR* argv[])
 {
