@@ -138,10 +138,48 @@ public:
 	~CBla(){cout << "bye" << endl;}
 };
 
+class CPipe
+{
+public:
+	typedef std::tr1::function<void(std::string)> CCb;
+	void Listen(const CCb& P_Cb)
+	{
+		m_Cb = P_Cb;
+	}
 
+	void Send(const std::string& P_csData)
+	{
+		m_Cb(P_csData);
+	}
+
+private:
+	CCb m_Cb;
+};
+
+void ReceiverCoro(CVoidCoro::self& P_Self, CPipe& P_Pipe)
+{
+	try
+	{
+		CFuture<std::string> W_Receiver;
+		P_Pipe.Listen(W_Receiver.MakeCallback());
+		cout << "Waiting for pipe info..." << endl;
+		while(true)
+		{
+			P_Self.Wait(W_Receiver);
+			cout << "Yea, received something: " << *W_Receiver << endl;
+		}
+	}
+	catch(...)
+	{
+		cout << "Just stopped receiving ..." << endl;
+		throw;
+	}
+	
+}
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	CMainCoro W_MainCoro = CCoro::Initialize();
 	{
 		JStd::COptional<CBla> W_1;
 		JStd::COptional<CBla> W_2;
@@ -156,7 +194,19 @@ int _tmain(int argc, _TCHAR* argv[])
 			cout << "W2 is ok" << endl;
 	}
 
-	CMainCoro W_MainCoro = CCoro::Initialize();
+	{
+		CPipe W_Pipe;
+		CVoidCoro W_TestFuture(std::tr1::bind(&ReceiverCoro, std::tr1::placeholders::_1, std::tr1::ref(W_Pipe)));
+		W_TestFuture(std::nothrow);
+
+		W_Pipe.Send("Lets");
+		W_Pipe.Send("Send");
+		W_Pipe.Send("Loads");
+		W_Pipe.Send("Of");
+		W_Pipe.Send("Things!");
+
+	}
+
 
 	cout << "Hello world!" << endl;
 
