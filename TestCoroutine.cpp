@@ -204,6 +204,16 @@ int _tmain(int argc, _TCHAR* argv[])
 		W_Pipe.Send("Loads");
 		W_Pipe.Send("Of");
 		W_Pipe.Send("Things!");
+		try
+		{
+			cout << "Should now throw..." << endl;
+			W_TestFuture();
+			cout << "This is wrong, it didn't throw!" << endl;
+		}
+		catch(std::exception& C_e)
+		{
+			cout << "Good. It did throw: " << C_e.what() << endl;
+		}
 
 	}
 
